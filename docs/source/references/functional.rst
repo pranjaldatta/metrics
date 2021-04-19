@@ -196,10 +196,31 @@ mean_squared_log_error [func]
     :noindex:
 
 
+pearson_corrcoef [func]
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: torchmetrics.functional.pearson_corrcoef
+    :noindex:
+
+
 psnr [func]
 ~~~~~~~~~~~
 
 .. autofunction:: torchmetrics.functional.psnr
+    :noindex:
+
+
+r2score [func]
+~~~~~~~~~~~~~~
+
+.. autofunction:: torchmetrics.functional.r2score
+    :noindex:
+
+
+spearman_corrcoef [func]
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: torchmetrics.functional.spearman_corrcoef
     :noindex:
 
 
@@ -209,12 +230,6 @@ ssim [func]
 .. autofunction:: torchmetrics.functional.ssim
     :noindex:
 
-
-r2score [func]
-~~~~~~~~~~~~~~
-
-.. autofunction:: torchmetrics.functional.r2score
-    :noindex:
 
 ***
 NLP
@@ -248,7 +263,35 @@ retrieval_average_precision [func]
 
 
 retrieval_reciprocal_rank [func]
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. autofunction:: torchmetrics.functional.retrieval_reciprocal_rank
+    :noindex:
+
+
+retrieval_precision [func]
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: torchmetrics.functional.retrieval_precision
+    :noindex:
+
+
+retrieval_recall [func]
+~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: torchmetrics.functional.retrieval_recall
+    :noindex:
+
+
+retrieval_fall_out [func]
+~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: torchmetrics.functional.retrieval_fall_out
+    :noindex:
+
+
+retrieval_normalized_dcg [func]
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+.. autofunction:: torchmetrics.functional.retrieval_normalized_dcg
     :noindex:

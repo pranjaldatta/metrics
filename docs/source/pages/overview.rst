@@ -145,6 +145,7 @@ the following limitations:
   but they are also listed below:
   
   - :ref:`references/modules:PSNR` and :ref:`references/functional:psnr [func]`
+  - :ref:`references/modules:SSIM` and :ref:`references/functional:ssim [func]`
 
 ******************
 Metric Arithmetics
@@ -192,6 +193,7 @@ This pattern is implemented for the following operators (with ``a`` being metric
 * Inversion (``~a``)
 * Negative Value (``neg(a)``)
 * Positive Value (``pos(a)``)
+* Indexing (``a[0]``)
 
 .. note::
 
@@ -238,7 +240,7 @@ inside your LightningModule
 
     class MyModule():
         def __init__(self):
-            metrics = MetricCollection(Accuracy(), Precision(), Recall())
+            metrics = MetricCollection([Accuracy(), Precision(), Recall()])
             self.train_metrics = metrics.clone(prefix='train_')
             self.valid_metrics = metrics.clone(prefix='val_')
 
@@ -279,3 +281,31 @@ They simply compute the metric value based on the given inputs.
 Also, the integration within other parts of PyTorch Lightning will never be as tight as with the Module-based interface.
 If you look for just computing the values, the functional metrics are the way to go.
 However, if you are looking for the best integration and user experience, please consider also using the Module interface.
+
+
+*****************************
+Metrics and differentiability
+*****************************
+
+Metrics support backpropagation, if all computations involved in the metric calculation
+are differentiable. All modular metrics have a property that determines if a metric is
+differentible or not.
+
+.. code-block:: python
+
+    @property
+    def is_differentiable(self) -> bool:
+        return True/False
+
+However, note that the cached state is detached from the computational
+graph and cannot be backpropagated. Not doing this would mean storing the computational
+graph for each update call, which can lead to out-of-memory errors.
+In practise this means that:
+
+.. code-block:: python
+
+    metric = MyMetric()
+    val = metric(pred, target) # this value can be backpropagated
+    val = metric.compute() # this value cannot be backpropagated
+
+A functional metric is differentiable if its corresponding modular metric is differentiable.

@@ -59,6 +59,8 @@ class Metric(nn.Module, ABC):
             will be used to perform the allgather.
     """
 
+    __jit_ignored_attributes__ = ["is_differentiable"]
+
     def __init__(
         self,
         compute_on_step: bool = True,
@@ -126,10 +128,7 @@ class Metric(nn.Module, ABC):
             ValueError:
                 If ``dist_reduce_fx`` is not callable or one of ``"mean"``, ``"sum"``, ``"cat"``, ``None``.
         """
-        if (
-            not isinstance(default, Tensor) and not isinstance(default, list)  # noqa: W503
-            or (isinstance(default, list) and len(default) != 0)  # noqa: W503
-        ):
+        if (not isinstance(default, (Tensor, list)) or (isinstance(default, list) and default)):
             raise ValueError("state variable must be a tensor or any empty list (where you can append tensors)")
 
         if dist_reduce_fx == "sum":
@@ -257,12 +256,14 @@ class Metric(nn.Module, ABC):
         """
         This method automatically resets the metric state variables to their default value.
         """
+        self._computed = None
+
         for attr, default in self._defaults.items():
             current_val = getattr(self, attr)
             if isinstance(default, Tensor):
-                setattr(self, attr, deepcopy(default).to(current_val.device))
+                setattr(self, attr, default.detach().clone().to(current_val.device))
             else:
-                setattr(self, attr, deepcopy(default))
+                setattr(self, attr, [])
 
     def clone(self):
         """ Make a copy of the metric """
@@ -304,7 +305,7 @@ class Metric(nn.Module, ABC):
         for key in self._persistent.keys():
             self._persistent[key] = mode
 
-    def state_dict(self, destination=None, prefix='', keep_vars=False):
+    def state_dict(self, destination=None, prefix="", keep_vars=False):
         destination = super().state_dict(destination=destination, prefix=prefix, keep_vars=keep_vars)
         # Register metric states to be part of the state_dict
         for key in self._defaults.keys():
@@ -342,7 +343,7 @@ class Metric(nn.Module, ABC):
             val = getattr(self, key)
             # Special case: allow list values, so long
             # as their elements are hashable
-            if hasattr(val, '__iter__') and not isinstance(val, Tensor):
+            if hasattr(val, "__iter__") and not isinstance(val, Tensor):
                 hash_vals.extend(val)
             else:
                 hash_vals.append(val)
@@ -449,6 +450,15 @@ class Metric(nn.Module, ABC):
     def __pos__(self):
         return CompositionalMetric(torch.abs, self, None)
 
+    def __getitem__(self, idx):
+        return CompositionalMetric(lambda x: x[idx], self, None)
+
+    @property
+    def is_differentiable(self):
+        # There is a bug in PyTorch that leads to properties being executed during scripting
+        # To make the metric scriptable, we add property to ignore list and switch to return None here
+        return None
+
 
 def _neg(tensor: Tensor):
     return -torch.abs(tensor)
@@ -530,6 +540,6 @@ class CompositionalMetric(Metric):
 
     def __repr__(self) -> str:
         _op_metrics = f"(\n  {self.op.__name__}(\n    {repr(self.metric_a)},\n    {repr(self.metric_b)}\n  )\n)"
-        repr_str = (self.__class__.__name__ + _op_metrics)
+        repr_str = self.__class__.__name__ + _op_metrics
 
         return repr_str

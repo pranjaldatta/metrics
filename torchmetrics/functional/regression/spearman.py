@@ -56,13 +56,13 @@ def _spearman_corrcoef_update(preds: Tensor, target: Tensor) -> Tuple[Tensor, Te
     if preds.dtype != target.dtype:
         raise TypeError(
             "Expected `preds` and `target` to have the same data type."
-            f" Got pred: {preds.dtype} and target: {target.dtype}."
+            f" Got preds: {preds.dtype} and target: {target.dtype}."
         )
     _check_same_shape(preds, target)
-
+    preds = preds.squeeze()
+    target = target.squeeze()
     if preds.ndim > 1 or target.ndim > 1:
         raise ValueError('Expected both predictions and target to be 1 dimensional tensors.')
-
     return preds, target
 
 

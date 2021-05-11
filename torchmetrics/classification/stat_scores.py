@@ -12,14 +12,13 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 from typing import Any, Callable, Optional, Tuple
-from warnings import warn
 
-import numpy as np
 import torch
 from torch import Tensor, tensor
 
 from torchmetrics.functional.classification.stat_scores import _stat_scores_compute, _stat_scores_update
 from torchmetrics.metric import Metric
+from torchmetrics.utilities import _deprecation_warn_arg_is_multiclass
 from torchmetrics.utilities.enums import AverageMethod, MDMCAverageMethod
 
 
@@ -104,6 +103,9 @@ class StatScores(Metric):
         dist_sync_fn:
             Callback that performs the allgather operation on the metric state. When ``None``, DDP
             will be used to perform the allgather.
+        is_multiclass:
+            .. deprecated:: 0.3
+                Argument will not have any effect and will be removed in v0.4, please use ``multiclass`` intead.
 
     Raises:
         ValueError:
@@ -148,12 +150,7 @@ class StatScores(Metric):
         dist_sync_fn: Callable = None,
         is_multiclass: Optional[bool] = None,  # todo: deprecated, remove in v0.4
     ):
-        if is_multiclass is not None and multiclass is None:
-            warn(
-                "Argument `is_multiclass` was deprecated in v0.3.0 and will be removed in v0.4. Use `multiclass`.",
-                DeprecationWarning
-            )
-            multiclass = is_multiclass
+        multiclass = _deprecation_warn_arg_is_multiclass(is_multiclass, multiclass)
 
         super().__init__(
             compute_on_step=compute_on_step,
@@ -342,7 +339,7 @@ model_evaluation.html#multiclass-and-multilabel-classification>`__.
         ignore_mask = ignore_mask.sum(dim=0).bool()
 
     if average in (AverageMethod.NONE, None):
-        scores = torch.where(ignore_mask, tensor(np.nan, device=scores.device), scores)
+        scores = torch.where(ignore_mask, tensor(float('nan'), device=scores.device), scores)
     else:
         scores = scores.sum()
 

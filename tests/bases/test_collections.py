@@ -133,29 +133,93 @@ def test_metric_collection_args_kwargs(tmpdir):
     assert metric_collection['DummyMetricDiff'].x == -20
 
 
-def test_metric_collection_prefix_arg(tmpdir):
+@pytest.mark.parametrize(
+    "prefix, postfix", [
+        [None, None],
+        ['prefix_', None],
+        [None, '_postfix'],
+        ['prefix_', '_postfix'],
+    ]
+)
+def test_metric_collection_prefix_postfix_args(prefix, postfix):
     """ Test that the prefix arg alters the keywords in the output"""
     m1 = DummyMetricSum()
     m2 = DummyMetricDiff()
     names = ['DummyMetricSum', 'DummyMetricDiff']
+    names = [prefix + n if prefix is not None else n for n in names]
+    names = [n + postfix if postfix is not None else n for n in names]
 
-    metric_collection = MetricCollection([m1, m2], prefix='prefix_')
+    metric_collection = MetricCollection([m1, m2], prefix=prefix, postfix=postfix)
 
     # test forward
     out = metric_collection(5)
     for name in names:
-        assert f"prefix_{name}" in out, 'prefix argument not working as intended with forward method'
+        assert name in out, 'prefix or postfix argument not working as intended with forward method'
 
     # test compute
     out = metric_collection.compute()
     for name in names:
-        assert f"prefix_{name}" in out, 'prefix argument not working as intended with compute method'
+        assert name in out, 'prefix or postfix argument not working as intended with compute method'
 
     # test clone
     new_metric_collection = metric_collection.clone(prefix='new_prefix_')
     out = new_metric_collection(5)
+    names = [n[len(prefix):] if prefix is not None else n for n in names]  # strip away old prefix
     for name in names:
         assert f"new_prefix_{name}" in out, 'prefix argument not working as intended with clone method'
+
+    for k, _ in new_metric_collection.items():
+        assert 'new_prefix_' in k
+
+    for k in new_metric_collection.keys():
+        assert 'new_prefix_' in k
+
+    for k, _ in new_metric_collection.items(keep_base=True):
+        assert 'new_prefix_' not in k
+
+    for k in new_metric_collection.keys(keep_base=True):
+        assert 'new_prefix_' not in k
+
+    assert type(new_metric_collection.keys(keep_base=True)) == type(new_metric_collection.keys(keep_base=False))     # noqa E721
+    assert type(new_metric_collection.items(keep_base=True)) == type(new_metric_collection.items(keep_base=False))   # noqa E721
+
+    new_metric_collection = new_metric_collection.clone(postfix='_new_postfix')
+    out = new_metric_collection(5)
+    names = [n[:-len(postfix)] if postfix is not None else n for n in names]  # strip away old postfix
+    for name in names:
+        assert f"new_prefix_{name}_new_postfix" in out, 'postfix argument not working as intended with clone method'
+
+
+def test_metric_collection_repr():
+    """
+    Test MetricCollection
+    """
+
+    class A(DummyMetricSum):
+        pass
+
+    class B(DummyMetricDiff):
+        pass
+
+    m1 = A()
+    m2 = B()
+    metric_collection = MetricCollection([m1, m2], prefix=None, postfix=None)
+
+    expected = "MetricCollection(\n  (A): A()\n  (B): B()\n)"
+    assert metric_collection.__repr__() == expected
+
+    metric_collection = MetricCollection([m1, m2], prefix="a", postfix=None)
+
+    expected = 'MetricCollection(\n  (A): A()\n  (B): B(),\n  prefix=a\n)'
+    assert metric_collection.__repr__() == expected
+
+    metric_collection = MetricCollection([m1, m2], prefix=None, postfix="a")
+    expected = 'MetricCollection(\n  (A): A()\n  (B): B(),\n  postfix=a\n)'
+    assert metric_collection.__repr__() == expected
+
+    metric_collection = MetricCollection([m1, m2], prefix="a", postfix="b")
+    expected = 'MetricCollection(\n  (A): A()\n  (B): B(),\n  prefix=a,\n  postfix=b\n)'
+    assert metric_collection.__repr__() == expected
 
 
 def test_metric_collection_same_order():
@@ -165,3 +229,25 @@ def test_metric_collection_same_order():
     col2 = MetricCollection({"b": m2, "a": m1})
     for k1, k2 in zip(col1.keys(), col2.keys()):
         assert k1 == k2
+
+
+def test_collection_add_metrics():
+    m1 = DummyMetricSum()
+    m2 = DummyMetricDiff()
+
+    collection = MetricCollection([m1])
+    collection.add_metrics({'m1_': DummyMetricSum()})
+    collection.add_metrics(m2)
+
+    collection.update(5)
+    results = collection.compute()
+    assert results['DummyMetricSum'] == results['m1_'] and results['m1_'] == 5
+    assert results['DummyMetricDiff'] == -5
+
+
+def test_collection_check_arg():
+    assert MetricCollection._check_arg(None, 'prefix') is None
+    assert MetricCollection._check_arg('sample', 'prefix') == 'sample'
+
+    with pytest.raises(ValueError, match="Expected input `postfix` to be a string, but got"):
+        MetricCollection._check_arg(1, 'postfix')
